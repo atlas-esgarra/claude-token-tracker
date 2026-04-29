@@ -1,0 +1,502 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Days Since Last Claude Token Request</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+    }
+
+    .shell {
+      max-width: 680px;
+      width: 100%;
+      text-align: center;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .emoji-badge {
+      font-size: 64px;
+      line-height: 1;
+      margin-bottom: 24px;
+      display: block;
+      animation: wiggle 3s ease-in-out infinite;
+    }
+
+    @keyframes wiggle {
+      0%, 100% { transform: rotate(0deg); }
+      20%       { transform: rotate(-8deg); }
+      40%       { transform: rotate(8deg); }
+      60%       { transform: rotate(-4deg); }
+      80%       { transform: rotate(4deg); }
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #6e6e73;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .counter-card {
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 48px 40px 40px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 12px 32px rgba(0,0,0,0.06);
+      margin: 24px 0 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .counter-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #0071e3, #34aadc);
+      border-radius: 24px 24px 0 0;
+    }
+
+    .big-number {
+      font-size: 120px;
+      font-weight: 700;
+      letter-spacing: -0.05em;
+      line-height: 1;
+      color: #0071e3;
+      transition: all 0.3s ease;
+      display: block;
+    }
+
+    .big-number.zero {
+      color: #ff3b30;
+      animation: pulse 0.6s ease;
+    }
+
+    @keyframes pulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    .unit {
+      font-size: 22px;
+      font-weight: 500;
+      color: #86868b;
+      margin-top: 4px;
+      display: block;
+    }
+
+    .tagline {
+      font-size: 14px;
+      color: #86868b;
+      margin-top: 16px;
+      line-height: 1.5;
+      min-height: 40px;
+      transition: opacity 0.3s ease;
+    }
+
+    .since-label {
+      font-size: 12px;
+      color: #d2d2d7;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-top: 20px;
+    }
+
+    .since-date {
+      font-size: 13px;
+      color: #86868b;
+      margin-top: 4px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 500;
+      border: none;
+      border-radius: 980px;
+      padding: 12px 28px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    .btn-reset {
+      background: #ff3b30;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(255,59,48,0.25);
+    }
+
+    .btn-reset:hover {
+      background: #e0352b;
+      box-shadow: 0 4px 16px rgba(255,59,48,0.3);
+    }
+
+    .btn-set {
+      background: #f5f5f7;
+      color: #1d1d1f;
+    }
+
+    .btn-set:hover {
+      background: #e8e8ed;
+    }
+
+    .confetti-container {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      opacity: 0;
+      font-size: 24px;
+      line-height: 1;
+      user-select: none;
+      animation: confettiFall 1.6s ease-in forwards;
+    }
+
+    @keyframes confettiFall {
+      0%   { opacity: 1; transform: translateY(-20px) rotate(0deg) scale(1); }
+      60%  { opacity: 1; }
+      100% { opacity: 0; transform: translateY(100vh) rotate(30deg) scale(0.8); }
+    }
+
+    .milestone-banner {
+      background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+      border: 1px solid rgba(0, 113, 227, 0.15);
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 13px;
+      color: #0071e3;
+      margin-top: 16px;
+      display: none;
+      animation: fadeUp 0.4s ease;
+    }
+
+    .milestone-banner.visible {
+      display: block;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: 20px;
+      padding: 32px;
+      width: 320px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+      transform: translateY(12px);
+      transition: transform 0.2s ease;
+    }
+
+    .modal-overlay.open .modal {
+      transform: translateY(0);
+    }
+
+    .modal h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .modal p {
+      font-size: 14px;
+      color: #6e6e73;
+      margin-bottom: 20px;
+    }
+
+    .modal input[type="date"] {
+      font-family: inherit;
+      font-size: 15px;
+      border: 1px solid #d2d2d7;
+      border-radius: 10px;
+      padding: 10px 14px;
+      width: 100%;
+      margin-bottom: 16px;
+      color: #1d1d1f;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .modal input[type="date"]:focus {
+      border-color: #0071e3;
+      box-shadow: 0 0 0 3px rgba(0,113,227,0.2);
+    }
+
+    .modal .modal-btns {
+      display: flex;
+      gap: 10px;
+    }
+
+    .modal .modal-btns button {
+      flex: 1;
+      padding: 10px 16px;
+      font-size: 14px;
+    }
+
+    .modal .btn-confirm {
+      background: #0071e3;
+      color: #fff;
+    }
+
+    .modal .btn-confirm:hover {
+      background: #005bbf;
+    }
+
+    .modal .btn-cancel {
+      background: #f5f5f7;
+      color: #1d1d1f;
+    }
+
+    @media screen and (max-width: 480px) {
+      .big-number { font-size: 80px; }
+      .counter-card { padding: 36px 24px 32px; }
+    }
+
+    @media print {
+      body { background: #fff; padding: 0.4in 0.6in; }
+      .btn-row, .modal-overlay { display: none !important; }
+      .counter-card { box-shadow: none !important; border: 1px solid rgba(0,0,0,0.08); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="confetti-container" id="confetti"></div>
+
+  <div class="shell">
+    <span class="emoji-badge" id="emoji">🤖</span>
+    <h1>Days Without a Claude Token Request</h1>
+
+    <div class="counter-card">
+      <span class="big-number" id="dayCount">0</span>
+      <span class="unit">days</span>
+      <p class="tagline" id="tagline">Loading your streak...</p>
+      <div class="milestone-banner" id="milestone"></div>
+      <div class="since-label">Last incident</div>
+      <div class="since-date" id="sinceDate">--</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-reset" onclick="resetCounter()">🚨 It Happened Again</button>
+      <button class="btn-set" onclick="openModal()">📅 Set Custom Date</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h2>Set Last Incident Date</h2>
+      <p>When did Claude last eat your tokens for breakfast?</p>
+      <input type="date" id="customDate" />
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-confirm" onclick="applyCustomDate()">Set Date</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'claude_token_last_incident';
+
+    const taglines = [
+      { max: 0,   emoji: '😱', text: 'Oh no. Not again. Not today.' },
+      { max: 1,   emoji: '😤', text: 'One whole day. The healing begins.' },
+      { max: 3,   emoji: '🤞', text: 'Holding our breath. Context window anxiety is real.' },
+      { max: 7,   emoji: '😅', text: 'A whole week. The team is cautiously optimistic.' },
+      { max: 14,  emoji: '🙏', text: 'Two weeks clean. Token rationing may resume.' },
+      { max: 30,  emoji: '🎉', text: 'A month?! Someone frame this.' },
+      { max: 60,  emoji: '🏆', text: 'Two months. The model is confused but unbothered.' },
+      { max: 90,  emoji: '🦄', text: 'Three months. Legend. Myth. A cautionary tale in reverse.' },
+      { max: Infinity, emoji: '👾', text: 'At this point Claude has forgotten what tokens even are.' }
+    ];
+
+    const milestones = {
+      1: '🥇 First full day survived!',
+      7: '📅 One week strong. Gold star.',
+      14: '💪 Two weeks. You might actually be cured.',
+      30: '🎂 30 days! Someone bring cake to the standup.',
+      60: '🚀 60 days. A new company record (probably).',
+      90: '🌟 90 days. Please write a blog post about this.',
+    };
+
+    function getLastIncident() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) return new Date(stored);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      saveLastIncident(today);
+      return today;
+    }
+
+    function saveLastIncident(date) {
+      localStorage.setItem(STORAGE_KEY, date.toISOString());
+    }
+
+    function getDaysDiff(from) {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      from = new Date(from);
+      from.setHours(0, 0, 0, 0);
+      return Math.max(0, Math.floor((now - from) / (1000 * 60 * 60 * 24)));
+    }
+
+    function updateDisplay(days) {
+      const dayEl = document.getElementById('dayCount');
+      const tagEl = document.getElementById('tagline');
+      const emojiEl = document.getElementById('emoji');
+      const milestoneEl = document.getElementById('milestone');
+      const sinceDateEl = document.getElementById('sinceDate');
+
+      dayEl.textContent = days;
+      dayEl.classList.toggle('zero', days === 0);
+
+      const tier = taglines.find(t => days <= t.max);
+      tagEl.textContent = tier.text;
+      emojiEl.textContent = tier.emoji;
+
+      const lastDate = getLastIncident();
+      sinceDateEl.textContent = lastDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+      if (milestones[days]) {
+        milestoneEl.textContent = milestones[days];
+        milestoneEl.classList.add('visible');
+        spawnConfetti();
+      } else {
+        milestoneEl.classList.remove('visible');
+      }
+    }
+
+    function resetCounter() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      saveLastIncident(today);
+      updateDisplay(0);
+      spawnConfetti(true);
+    }
+
+    function openModal() {
+      const overlay = document.getElementById('modalOverlay');
+      const input = document.getElementById('customDate');
+      const last = getLastIncident();
+      input.value = last.toISOString().split('T')[0];
+      overlay.classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('open');
+    }
+
+    function applyCustomDate() {
+      const val = document.getElementById('customDate').value;
+      if (!val) return;
+      const d = new Date(val + 'T00:00:00');
+      saveLastIncident(d);
+      const days = getDaysDiff(d);
+      updateDisplay(days);
+      closeModal();
+    }
+
+    function spawnConfetti(sad = false) {
+      const container = document.getElementById('confetti');
+      container.innerHTML = '';
+      const sadEmojis    = ['😢', '😭', '😤', '😠', '😡', '😰', '😨', '😧', '😩', '🤬'];
+      const happyEmojis  = ['🎉', '🥳', '✨', '🎊', '🙌', '💪', '🏆', '⭐', '🥇', '🎈'];
+      const pool = sad ? sadEmojis : happyEmojis;
+
+      for (let i = 0; i < 40; i++) {
+        const el = document.createElement('div');
+        el.className = 'confetti-piece';
+        el.textContent = pool[Math.floor(Math.random() * pool.length)];
+        el.style.left = Math.random() * 100 + 'vw';
+        el.style.top = '-40px';
+        el.style.fontSize = (18 + Math.random() * 18) + 'px';
+        el.style.animationDelay = (Math.random() * 0.8) + 's';
+        el.style.animationDuration = (1.2 + Math.random() * 0.8) + 's';
+        container.appendChild(el);
+      }
+      setTimeout(() => container.innerHTML = '', 3000);
+    }
+
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    const days = getDaysDiff(getLastIncident());
+    updateDisplay(days);
+
+    setInterval(() => {
+      const current = getDaysDiff(getLastIncident());
+      updateDisplay(current);
+    }, 60000);
+  </script>
+
+  <script>
+    window.GleanBridge.postMessage({
+      actionId: 'export-pdf',
+      type: 'glean-add-menu',
+      metadata: { label: 'Export as PDF', icon: 'export' }
+    });
+    window.GleanBridge.onMessage('action', function(data) {
+      if (data.actionId === 'export-pdf') window.print();
+    });
+  </script>
+</body>
+</html>
